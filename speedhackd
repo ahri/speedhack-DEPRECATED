@@ -1,7 +1,21 @@
 #!/bin/bash
+##########################################################################
+# LICENSE:      GPL3
+# LICENSE TEXT: http://www.gnu.org/licenses/gpl-3.0.html
+##########################################################################
+
+##########################################################################
+# DESCRIPTION
+##########################################################################
+# Daemon to mount specified system directories into tmpfs and to mirror
+# back the changes as they occur -- hopefully providing a speed benefit to
+# a Linux system
+##########################################################################
+
 
 ##########################################################################
 # ASSUMPTIONS
+##########################################################################
 #
 # 1) No allowance is made for the situation where a directory you wish to
 #    speedhack is not held on the root device -- bindings are made to the
