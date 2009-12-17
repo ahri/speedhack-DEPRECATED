@@ -96,9 +96,6 @@ wait_on_mirrors()
         if [[ ${#pids[@]} -gt 0 ]]; then
                 info "waiting for spawned processes to end: %s" "$(echo "${pids[@]}" | tr '\n' ' ')"
                 wait
-        else
-                info "waiting for user input to end manager"
-                read
         fi
 }
 
@@ -416,6 +413,9 @@ case "$action" in
                         else
                                 ro=0
                         fi
+
+                        # making everything read-only
+                        ro=1
 
                         system_dir="${system_dir#@}"
                         physical_dir="$real_root_dir$system_dir"

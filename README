@@ -62,9 +62,5 @@ copy of the directories on the hard drive as they are made.
 
 Warranty
 --------
-None at all. By the very nature of this script an extra layer is introduced
-between you and your important system files. If it fails to copy back files
-then you WILL lose data when power is lost.
-
-Testing has involved a system upgrade on Ubuntu, Gentoo and Arch Linux.
-It seemed to work fine, but YMMV ;-)
+It is strongly suggested that it is used in a read-only fashion.
+Mirroring back behaviour is not safe and not working at this time.
