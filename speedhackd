@@ -171,6 +171,27 @@ config()
 # Action definitions
 ##########################################################################
 
+a_daemon_stall_file()
+{
+        local daemon_stall_file="$1"
+
+        echo "$daemon_stall_file"
+
+        exit 0
+}
+
+a_daemon_stall_check()
+{
+        local daemon_stall_file="$1"
+
+        if [[ -f $daemon_stall_file ]]; then
+                rm -f "$daemon_stall_file"
+                return 1
+        fi
+
+        return 0
+}
+
 a_mirror_dir()
 {
         local dir_source="$1"
@@ -374,7 +395,7 @@ fi
 ##########################################################################
 
 # set up required variables from config file
-config "$config_file" @pid_file @log_file @mount_type @real_root_dir @inmemory_mirror_dir dir mode
+config "$config_file" @pid_file @log_file @mount_type @real_root_dir @inmemory_mirror_dir @daemon_stall_file dir mode
 
 # check that cfg specified directories exist
 [[ -d `dirname "$pid_file"` ]] || error "directory for pid_file '%s' does not exist" "$pid_file"
@@ -392,6 +413,10 @@ case "$action" in
 
         pid_file)
                 a_pid_file "$pid_file"
+                ;;
+
+        daemon_stall_file)
+                a_daemon_stall_file "$daemon_stall_file"
                 ;;
 
         bind_root)
@@ -457,6 +482,7 @@ case "$action" in
                 ;;
 
         daemon)
+                a_daemon_stall_check "$daemon_stall_file"   &&
                 speedhackd "bind_root"  >> "$log_file" 2>&1 &&
                 speedhackd "mount_dirs" >> "$log_file" 2>&1 &&
                 speedhackd "sync"       >> "$log_file" 2>&1 &&
@@ -490,6 +516,7 @@ case "$action" in
                 info ""
                 info "    mirror_dir <s> <t> -- mirror changes from a source directory to a target directory"
                 info "    pid_file           -- echo pid_file from cfg"
+                info "    daemon_stall_file  -- echo daemon_stall_file from cfg; stalls daemon at next bootup for upgrade purposes"
                 info ""
                 info "    bind_root          -- bind the root to the specified real_root_dir"
                 info "    mount_dirs         -- mount all in-memory dirs"
