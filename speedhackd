@@ -1,5 +1,7 @@
 #!/bin/bash
 ##########################################################################
+# AUTHOR:       Adam Piper (adam@ahri.net)
+# DATE:         2009-12-17
 # LICENSE:      GPL3
 # LICENSE TEXT: http://www.gnu.org/licenses/gpl-3.0.html
 ##########################################################################
@@ -78,9 +80,10 @@ error()
 }
 
 # Handle kill signals by terminating mirroring and closing gracefully
-# TODO: note that we need to figure out how to unmount stuff more forcefully -- kill off stuff with lsof???
 killed()
 {
+        # the priority is to save any data, so try now
+        speedhackd "sync_back"
         for pid in "${pids[@]}"; do
                 kill -TERM -"$pid"
         done
@@ -467,9 +470,15 @@ case "$action" in
                 ;;
 
         kill_daemon)
+                # It's expected that this process will fail in most cases,
+                # since the system will most likely have processes running from
+                # the mounts we've created. As such the strategy taken is to
+                # save the data back as a priority and do the "cleaning up" as
+                # possible.
+
+                speedhackd "sync_back"    >> "$log_file" 2>&1 &&
                 speedhackd "kill_mirror"  >> "$log_file" 2>&1 &&
                 speedhackd "unbind_dirs"  >> "$log_file" 2>&1 &&
-                speedhackd "sync_back"    >> "$log_file" 2>&1 &&
                 speedhackd "unmount_dirs" >> "$log_file" 2>&1 &&
                 speedhackd "unbind_root"  >> "$log_file" 2>&1
 
