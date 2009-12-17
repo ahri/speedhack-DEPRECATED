@@ -30,6 +30,15 @@ Note that timings are approximate and were begun from execution time until the
 GUI window appeared on screen. Even with allowance for timing errors the
 solution makes a clear impact upon the experience of a user.
 
+Firefox Extensions used:
+        Adlock Plus
+        Flashblock
+        FireGestures
+        Vimperator
+        Firebug
+        Download Statusbar
+        Nuke Anything Enhanced
+
 Summary
 -------
 Daemon to mount specified system directories into tmpfs and to mirror back the
