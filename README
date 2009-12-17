@@ -1,0 +1,61 @@
+Name
+----
+speedhackd
+
+Author
+------
+Adam Piper (adam@ahri.net), December 2009
+
+Aim
+---
+To speed up usage of a Linux system at the cost of a "pre-loading" period at
+boot time. This will be achieved by selecting  directories whose contents are
+read more often than they are written and loading them into memory.
+
+Reason
+------
+To make the desktop experience of an end-user a "lighter" affair.
+
+Result
+------
+Tested with Crunchbang Linux (Lite) plain install, and Firefox 3.5 with
+extensions detailed below, on a PATA laptop in battery mode with 4GB RAM.
+
+Without speedhackd:                                                     7s
+With speedhackd running on /usr/bin, /usr/lib, /home/$USER/.mozilla:    2s
+
+Net speed gain with speedhackd:                                       350%
+
+Note that timings are approximate and were begun from execution time until the
+GUI window appeared on screen. Even with allowance for timing errors the
+solution makes a clear impact upon the experience of a user.
+
+Summary
+-------
+Daemon to mount specified system directories into tmpfs and to mirror back the
+changes as they occur  -- hopefully providing a speed benefit to a Linux
+system.
+
+Dependencies
+------------
+tmpfs
+rsync
+inotifywait
+
+Detail
+------
+speedhackd mounts specified directories into tmps, mirrors the system contents
+into them with rsync, and supplants the directories with the tmpfs mounts.
+
+It (optionally) mirrors back any changes in the tmpfs mounts with a custom
+monitoring script built over inotifywait, hopefully maintaining an accurate
+copy of the directories on the hard drive as they are made.
+
+Warranty
+--------
+None at all. By the very nature of this script an extra layer is introduced
+between you and your important system files. If it fails to copy back files
+then you WILL lose data when power is lost.
+
+Testing has involved a system upgrade on Ubuntu, Gentoo and Arch Linux.
+It seemed to work fine, but YMMV ;-)
