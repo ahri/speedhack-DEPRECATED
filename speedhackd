@@ -41,7 +41,7 @@
 # ramfs = RAM
 ##########################################################################
 
-config_file="/etc/speedhack.conf"
+config_file="/etc/speedhackd.conf"
 action="$1"
 
 
