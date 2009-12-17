@@ -186,7 +186,7 @@ a_daemon_stall_check()
 
         if [[ -f $daemon_stall_file ]]; then
                 rm -f "$daemon_stall_file"
-                return 1
+                error "Found stall file '%s': quitting" $daemon_stall_file
         fi
 
         return 0
@@ -482,7 +482,8 @@ case "$action" in
                 ;;
 
         daemon)
-                a_daemon_stall_check "$daemon_stall_file"   &&
+                a_daemon_stall_check "$daemon_stall_file"
+
                 speedhackd "bind_root"  >> "$log_file" 2>&1 &&
                 speedhackd "mount_dirs" >> "$log_file" 2>&1 &&
                 speedhackd "sync"       >> "$log_file" 2>&1 &&
