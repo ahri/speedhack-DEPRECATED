@@ -14,10 +14,10 @@
 ### END INIT INFO
 
 
-SPEEDHACKD="/usr/local/bin/speedhackd"
-test -x "$SPEEDHACKD" || exit 0
+SPEEDHACK="/usr/local/bin/speedhack"
+test -x "$SPEEDHACK" || exit 0
 
-PIDFILE=`speedhackd pid_file`
+PIDFILE=`speedhack pid_file`
 # In some systems the pidfile might be (incorrectly) set to /etc
 # if this pidfile is present, use it instead.
 [ -r /etc/default/speedhack ] && . /etc/default/speedhack
@@ -49,27 +49,27 @@ fi
 
 
 case "$1" in
-start)	log_daemon_msg "Starting speedhack" "speedhackd"
-        "$SPEEDHACKD" daemon
+start)	log_daemon_msg "Starting speedhack" "speedhack"
+        "$SPEEDHACK" daemon
         log_end_msg $?
 	;;
-stop)	log_daemon_msg "Stopping speedhack" "speedhackd"
-        "$SPEEDHACKD" kill_daemon
+stop)	log_daemon_msg "Stopping speedhack" "speedhack"
+        "$SPEEDHACK" kill_daemon
         log_end_msg $?
         ;;
-restart) log_daemon_msg "Restarting speedhack" "speedhackd" 
-        "$SPEEDHACKD" daemon
-        "$SPEEDHACKD" kill_daemon
+restart) log_daemon_msg "Restarting (syncing back) speedhack" "speedhack" 
+        "$SPEEDHACK" sync_back
         log_end_msg $?
         ;;
-reload|force-reload) log_daemon_msg "Reloading speedhack (not supported)" "speedhackd"
+reload|force-reload) log_daemon_msg "Reloading speedhack (not supported)" "speedhack"
 	# speedhack does not support reloading
         log_end_msg 1
         ;;
-status)
-	status_of_proc -p "$PIDFILE" "$SPEEDHACKD" speedhack && exit 0 || exit $?
+status) log_daemon_msg "Status check of speedhack (not supported)" "speedhack"
+	# speedhack does not support status
+        log_end_msg 1
 	;;
-*)	log_action_msg "Usage: /etc/init.d/speedhack {start|stop|restart|reload|force-reload|status}"
+*)	log_action_msg "Usage: /etc/init.d/speedhack {start|stop|restart}"
         exit 2
         ;;
 esac

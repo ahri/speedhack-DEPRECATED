@@ -9,9 +9,8 @@
 ##########################################################################
 # DESCRIPTION
 ##########################################################################
-# Daemon to mount specified system directories into tmpfs and to mirror
-# back the changes as they occur -- hopefully providing a speed benefit to
-# a Linux system
+# Script to mount specified system directories into tmpfs -- hopefully
+# providing a speed benefit to a Linux system
 ##########################################################################
 
 
@@ -41,7 +40,7 @@
 # ramfs = RAM
 ##########################################################################
 
-config_file="/etc/speedhackd.conf"
+config_file="/etc/speedhack.conf"
 action="$1"
 
 
@@ -77,26 +76,6 @@ error()
         shift
         printf "ERROR: $str\n" "$@" 1>&2
         exit 1
-}
-
-# Handle kill signals by terminating mirroring and closing gracefully
-killed()
-{
-        # the priority is to save any data, so try now
-        speedhackd "sync_back"
-        for pid in "${pids[@]}"; do
-                kill -TERM -"$pid"
-        done
-}
-set -m
-trap "killed" SIGINT SIGTERM KILL
-
-wait_on_mirrors()
-{
-        if [[ ${#pids[@]} -gt 0 ]]; then
-                info "waiting for spawned processes to end: %s" "$(echo "${pids[@]}" | tr '\n' ' ')"
-                wait
-        fi
 }
 
 config()
@@ -170,71 +149,6 @@ config()
 ##########################################################################
 # Action definitions
 ##########################################################################
-
-a_daemon_stall_file()
-{
-        local daemon_stall_file="$1"
-
-        echo "$daemon_stall_file"
-
-        exit 0
-}
-
-a_daemon_stall_check()
-{
-        local daemon_stall_file="$1"
-
-        if [[ -f $daemon_stall_file ]]; then
-                rm -f "$daemon_stall_file"
-                error "Found stall file '%s': quitting" $daemon_stall_file
-        fi
-
-        return 0
-}
-
-a_mirror_dir()
-{
-        local dir_source="$1"
-        local dir_target="$2"
-
-        local file_source=
-        local file_target=
-        local event=
-
-        [[ -d $dir_source ]] || error "directory '%s' is invalid" "$dir_source"
-        [[ -d $dir_target ]] || error "directory '%s' is invalid" "$dir_target"
-
-        # there is a bug in inotifywait on ubuntu 9.10 whereby the date doesn't get output, so i'm ditching the date
-        #inotifywait -mrq --timefmt '%Y%m%d%H%M%S' --format '%T %e %w%f' -e close_write,create,delete "$dir_source" | while read datetime event file_source; do
-        inotifywait -mrq --format '%e %w%f' -e close_write,create,delete "$dir_source" | while read event file_source; do
-                [[ -z $file_source    ]] && error "file_source not set, this implies unknown input from inotifywait"
-                [[ $event = "IGNORED" ]] && continue
-
-                # generate a log
-                file_target="$dir_target${file_source#$dir_source}"
-                #printf "EVENT: %s %s '%s' -> '%s'\n" "$datetime" "$event" "$file_source" "$file_target"
-                printf "EVENT: %s '%s' -> '%s'\n" "$event" "$file_source" "$file_target"
-
-                if   [[ $event = "DELETE"       ]]; then
-                        rm -f "$file_target"
-
-                elif [[ $event = "DELETE,ISDIR" ]]; then
-                        rm -rf "$file_target"
-
-                else
-                        rsync -ax "$file_source" "$file_target"
-                fi
-        done
-}
-
-a_pid_file()
-{
-        local pid_file="$1"
-
-        echo "$pid_file"
-
-        return 0
-}
 
 a_bind_root()
 {
@@ -313,6 +227,7 @@ a_sync()
 {
         local source_dir="$1"
         local target_dir="$2"
+        local verbose="$3"
 
         if   [[ ! -d $source_dir ]]; then
                 warning "directory '%s' does not exist; ignoring" "$source_dir"
@@ -324,52 +239,14 @@ a_sync()
         fi
 
         info "syncing '%s' -> '%s'" "$source_dir/" "$target_dir/"
-        rsync -ax --delete --force "$source_dir/" "$target_dir/" || error "rsync failed"
 
-        return 0
-}
+        if [[ $verbose = "Y" ]]; then
+                verbose="v"
+        else
+                verbose=""
+        fi
 
-a_mirror()
-{
-        local physical_dir="$1"
-        local inmemory_dir="$2"
-        local mode="$3"
-
-        local pid=
-
-        # writes to globals:
-        #     pids[]
-
-        # spawn a process to mirror back changes from the inmemory dir to the
-        # physical dir
-        case "$mode" in
-                "TEST")
-                        speedhackd mirror_dir "$physical_dir" "$inmemory_dir" &
-                        pid=$!
-                        pids=("${pids[@]}" "$pid")
-
-                        info "SPAWNED: %s, mirroring '%s' -> '%s'" "$pid" "$physical_dir" "$inmemory_dir"
-                        info "to test this, make some changes to '%s' and then execute:" "$physical_dir"
-                        info "        rsync -nax --delete --force '%s' '%s'" "$physical_dir/" "$inmemory_dir/"
-                        ;;
-                *)
-                        speedhackd mirror_dir "$inmemory_dir" "$physical_dir" &
-                        pid=$!
-                        pids=("${pids[@]}" "$pid")
-
-                        info "SPAWNED: %s, mirroring '%s' -> '%s'" "$pid" "$inmemory_dir" "$physical_dir"
-                        ;;
-        esac
-
-        return 0
-}
-
-a_kill_mirror()
-{
-        local pid_file="$1"
-
-        [[ -r "$pid_file" ]]      || error "pid_file '%s' does not exist" "$pid_file"
-        kill "$(cat "$pid_file")" || error "kill failed"
+        rsync -ax$verbose --delete --force "$source_dir/" "$target_dir/" || error "rsync failed"
 
         return 0
 }
@@ -382,12 +259,8 @@ if ! which rsync 2>&1 > /dev/null; then
         error "rsync is required to run this script"
 fi
 
-if ! which inotifywait 2>&1 > /dev/null; then
-        error "inotifywait (inotify-tools) is required to run this script"
-fi
-
-if ! which speedhackd 2>&1 > /dev/null; then
-        error "speedhackd is required to run this script"
+if ! which speedhack 2>&1 > /dev/null; then
+        error "speedhack is required to run this script"
 fi
 
 ##########################################################################
@@ -395,10 +268,9 @@ fi
 ##########################################################################
 
 # set up required variables from config file
-config "$config_file" @pid_file @log_file @mount_type @real_root_dir @inmemory_mirror_dir @daemon_stall_file dir mode
+config "$config_file" @log_file @mount_type @real_root_dir @inmemory_mirror_dir dir mode
 
 # check that cfg specified directories exist
-[[ -d `dirname "$pid_file"` ]] || error "directory for pid_file '%s' does not exist" "$pid_file"
 [[ -d `dirname "$log_file"` ]] || error "directory for log_file '%s' does not exist" "$log_file"
 
 ##########################################################################
@@ -406,19 +278,6 @@ config "$config_file" @pid_file @log_file @mount_type @real_root_dir @inmemory_m
 ##########################################################################
 
 case "$action" in
-        mirror_dir)
-                shift
-                a_mirror_dir "$1" "$2"
-                ;;
-
-        pid_file)
-                a_pid_file "$pid_file"
-                ;;
-
-        daemon_stall_file)
-                a_daemon_stall_file "$daemon_stall_file"
-                ;;
-
         bind_root)
                 a_bind_root "$real_root_dir"
                 ;;
@@ -427,10 +286,7 @@ case "$action" in
                 a_unbind_root "$real_root_dir"
                 ;;
 
-        mount_dirs|unmount_dirs|sync|sync_back|bind_dirs|unbind_dirs|mirror)
-                # instanciate global pids[]
-                pids=()
-
+        mount_dirs|unmount_dirs|sync|sync_back|bind_dirs|unbind_dirs)
                 # loop over dirs given in config and execute actions
                 for system_dir in "${system_dirs[@]}"; do
                         if [[ $system_dir = @* ]]; then
@@ -438,9 +294,6 @@ case "$action" in
                         else
                                 ro=0
                         fi
-
-                        # making everything read-only
-                        ro=1
 
                         system_dir="${system_dir#@}"
                         physical_dir="$real_root_dir$system_dir"
@@ -458,56 +311,39 @@ case "$action" in
 
                         elif [[ $action = "sync_back"    ]] &&
                              [[ $ro -eq 0 ]]; then
-                                a_sync "$inmemory_dir" "$physical_dir"
+                                a_sync "$inmemory_dir" "$physical_dir" "Y"
 
                         elif [[ $action = "bind_dirs"    ]]; then
                                 a_bind_dir "$inmemory_dir" "$system_dir"
 
                         elif [[ $action = "unbind_dirs"  ]]; then
                                 a_unbind_dir "$system_dir"
-
-                        elif [[ $action = "mirror"       ]] &&
-                             [[ $ro -eq 0                ]]; then
-                                a_mirror "$physical_dir" "$inmemory_dir" "$mode"
                         fi
                 done
-
-                if [[ $action = "mirror" ]]; then
-                        wait_on_mirrors
-                fi
                 ;;
 
-        kill_mirror)
-                a_kill_mirror "$pid_file"
-                ;;
-
-        daemon)
-                a_daemon_stall_check "$daemon_stall_file"
-
-                speedhackd "bind_root"  >> "$log_file" 2>&1 &&
-                speedhackd "mount_dirs" >> "$log_file" 2>&1 &&
-                speedhackd "sync"       >> "$log_file" 2>&1 &&
-                speedhackd "bind_dirs"  >> "$log_file" 2>&1 &&
-                speedhackd "mirror"     >> "$log_file" 2>&1 &
+        run)
+                speedhack "bind_root"  >> "$log_file" 2>&1 &&
+                speedhack "mount_dirs" >> "$log_file" 2>&1 &&
+                speedhack "sync"       >> "$log_file" 2>&1 &&
+                speedhack "bind_dirs"  >> "$log_file" 2>&1
 
                 err=$?
-                echo $! > "$pid_file"
 
-                exit $?
+                exit $err
                 ;;
 
-        kill_daemon)
+        unwind)
                 # It's expected that this process will fail in most cases,
                 # since the system will most likely have processes running from
                 # the mounts we've created. As such the strategy taken is to
                 # save the data back as a priority and do the "cleaning up" as
                 # possible.
 
-                speedhackd "sync_back"    >> "$log_file" 2>&1 &&
-                speedhackd "kill_mirror"  >> "$log_file" 2>&1 &&
-                speedhackd "unbind_dirs"  >> "$log_file" 2>&1 &&
-                speedhackd "unmount_dirs" >> "$log_file" 2>&1 &&
-                speedhackd "unbind_root"  >> "$log_file" 2>&1
+                speedhack "sync_back"    >> "$log_file" 2>&1 &&
+                speedhack "unbind_dirs"  >> "$log_file" 2>&1 &&
+                speedhack "unmount_dirs" >> "$log_file" 2>&1 &&
+                speedhack "unbind_root"  >> "$log_file" 2>&1
 
                 exit $?
                 ;;
@@ -515,24 +351,18 @@ case "$action" in
         *)
                 info "action must be one of:"
                 info ""
-                info "    mirror_dir <s> <t> -- mirror changes from a source directory to a target directory"
-                info "    pid_file           -- echo pid_file from cfg"
-                info "    daemon_stall_file  -- echo daemon_stall_file from cfg; stalls daemon at next bootup for upgrade purposes"
-                info ""
                 info "    bind_root          -- bind the root to the specified real_root_dir"
                 info "    mount_dirs         -- mount all in-memory dirs"
                 info "    sync               -- copy system directories to their in-memory counterparts"
                 info "    bind_dirs          -- bind system directories to their in-memory counterparts"
-                info "    mirror             -- mirror back changes in specified in-memory directories to the system"
                 info ""
-                info "    kill_mirror        -- send the kill signal to the existing mirror process"
                 info "    unbind_dirs        -- remove system bindings"
                 info "    sync_back          -- copy back any missed changes"
                 info "    unmount_dirs       -- unmount in-memory directories"
                 info "    unbind_root        -- unbind system root"
                 info ""
-                info "    daemon             -- perform bind_root, mount_dirs, sync, bind_dirs and fork mirror"
-                info "    kill_daemon        -- perform kill_mirror, unbind_dirs, sync_back, unmount_dirs, unbind_root"
+                info "    run                -- perform bind_root, mount_dirs, sync, and bind_dirs"
+                info "    unwind             -- perform sync_back, unbind_dirs, unmount_dirs, unbind_root"
                 info ""
                 error "unrecognised action '%s'" "$action"
                 ;;
