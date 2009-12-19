@@ -47,28 +47,41 @@ action="$1"
 # Utility functions
 ##########################################################################
 
+log()
+{
+        local level="$1"
+        local str="$2"
+
+        shift; shift
+
+        printf "%s %s: $str\n" "$(date +%Y%m%d%H%M%S)" "$level" "$@"
+}
+
 info()
 {
-        local str=$1
+        local str="$1"
 
         shift
-        printf "INFO: $str\n" "$@"
+
+        log "INFO" "$str" "$@"
 }
 
 warning()
 {
-        local str=$1
+        local str="$1"
 
         shift
-        printf "WARNING: $str\n" "$@"
+
+        log "WARNING" "$str" "$@"
 }
 
 error()
 {
-        local str=$1
+        local str="$1"
 
         shift
-        printf "ERROR: $str\n" "$@" 1>&2
+
+        log "ERROR" "$str" "$@"
         exit 1
 }
 
@@ -317,7 +330,7 @@ fi
 ##########################################################################
 
 # set up required variables from config file
-config "$config_file" @log_file:/var/log/speedhack.conf @mount_type:tmpfs @real_root_mount:/mnt/real_root_mount @memory_mounts:/mnt/memory_mounts dir
+config "$config_file" @log_file:/var/log/speedhack.log @mount_type:tmpfs @real_root_mount:/mnt/real_root_mount @memory_mounts:/mnt/memory_mounts dir
 
 # check that cfg specified directories exist
 [[ -d `dirname "$log_file"` ]] || error "directory for log_file '%s' does not exist" "$log_file"
