@@ -43,12 +43,6 @@
 config_file="/etc/speedhack.conf"
 action="$1"
 
-
-# mode can be "TEST" or other
-# when in test mode mirroring occurs from physical->memory and no
-# root re-binding occurs
-
-
 ##########################################################################
 # Utility functions
 ##########################################################################
@@ -85,17 +79,26 @@ config()
         local config_file="$1"
         local all_cfg_vars=()
         local req_cfg_vars=()
+        local defaults=()
         local key=
         local val=
         local var=
+        local i=
         local found=
         local missing=0
+        local default=
 
         shift
         # build up all_cfg_vars and reg_cfg_vars
         while [[ ! -z $1 ]]; do
-                [[ $1 = @* ]] && req_cfg_vars=("${req_cfg_vars[@]}" "${1#@}")
-                all_cfg_vars=("${all_cfg_vars[@]}" "${1#@}")
+                key="${1#@}"
+                key="${key%%:*}"
+                default="${1#*:}"
+
+                [[ $1 = @* ]] && req_cfg_vars=("${req_cfg_vars[@]}" "$key")
+                all_cfg_vars=("${all_cfg_vars[@]}" "$key")
+
+                defaults=("${defaults[@]}" $default)
                 shift
         done
 
@@ -135,9 +138,19 @@ config()
                 fi
         done < "$config_file"
 
+        for ((i=0; i <= "${#all_cfg_vars[@]}"; i++)); do
+                key="${all_cfg_vars[i]}"
+                default="${defaults[i]}"
+
+                if [[   -z "${!key}"  ]] &&
+                   [[ ! -z "$default" ]]; then
+                        eval "$key=\"\$default\""
+                fi
+        done
+
         # test that all required variable are set
-        for var in "${req_cfg_vars[@]}"; do
-                if [[ -z ${!var} ]]; then
+        for key in "${req_cfg_vars[@]}"; do
+                if [[ -z ${!key} ]]; then
                         missing=1
                         warning "config variable '%s' is required to run this script" "$var"
                 fi
@@ -150,21 +163,57 @@ config()
 # Action definitions
 ##########################################################################
 
+a_real_root_mount()
+{
+        local real_root_mount="$1"
+
+        echo "$real_root_mount"
+
+        exit 0
+}
+
+a_memory_mounts()
+{
+        local memory_mounts="$1"
+
+        echo "$memory_mounts"
+
+        exit 0
+}
+
+a_mount_type()
+{
+        local mount_type="$1"
+
+        echo "$mount_type"
+
+        exit 0
+}
+
+a_log_file()
+{
+        local log_file="$1"
+
+        echo "$log_file"
+
+        exit 0
+}
+
 a_bind_root()
 {
-        local real_root_dir="$1"
+        local real_root_mount="$1"
 
-        mkdir -p "$real_root_dir" 2> /dev/null
-        a_bind_dir "/" "$real_root_dir"
+        mkdir -p "$real_root_mount" 2> /dev/null
+        a_bind_dir "/" "$real_root_mount"
 
         return 0
 }
 
 a_unbind_root()
 {
-        local real_root_dir="$1"
+        local real_root_mount="$1"
 
-        a_unbind_dir "$real_root_dir"
+        a_unbind_dir "$real_root_mount"
 
         return 0
 }
@@ -192,12 +241,12 @@ a_unbind_dir()
 
 a_mount_dir()
 {
-        local inmemory_mirror_dir="$1"
+        local memory_mounts="$1"
         local mount_type="$2"
         local inmemory_dir="$3"
 
         # make the required directories
-        mkdir -p "$inmemory_mirror_dir" 2> /dev/null
+        mkdir -p "$memory_mounts" 2> /dev/null
 
         # make the mirror dir
         mkdir -p "$inmemory_dir" 2> /dev/null
@@ -268,7 +317,7 @@ fi
 ##########################################################################
 
 # set up required variables from config file
-config "$config_file" @log_file @mount_type @real_root_dir @inmemory_mirror_dir dir mode
+config "$config_file" @log_file:/var/log/speedhack.conf @mount_type:tmpfs @real_root_mount:/mnt/real_root_mount @memory_mounts:/mnt/memory_mounts dir
 
 # check that cfg specified directories exist
 [[ -d `dirname "$log_file"` ]] || error "directory for log_file '%s' does not exist" "$log_file"
@@ -278,12 +327,28 @@ config "$config_file" @log_file @mount_type @real_root_dir @inmemory_mirror_dir 
 ##########################################################################
 
 case "$action" in
+        log_file)
+                a_log_file "$log_file"
+                ;;
+
+        real_root_mount)
+                a_real_root_mount "$real_root_mount"
+                ;;
+
+        memory_mounts)
+                a_memory_mounts "$memory_mounts"
+                ;;
+
+        mount_type)
+                a_mount_type "$mount_type"
+                ;;
+
         bind_root)
-                a_bind_root "$real_root_dir"
+                a_bind_root "$real_root_mount"
                 ;;
 
         unbind_root)
-                a_unbind_root "$real_root_dir"
+                a_unbind_root "$real_root_mount"
                 ;;
 
         mount_dirs|unmount_dirs|sync|sync_back|bind_dirs|unbind_dirs)
@@ -296,12 +361,12 @@ case "$action" in
                         fi
 
                         system_dir="${system_dir#@}"
-                        physical_dir="$real_root_dir$system_dir"
-                        inmemory_dir="$inmemory_mirror_dir$system_dir"
+                        physical_dir="$real_root_mount$system_dir"
+                        inmemory_dir="$memory_mounts$system_dir"
 
 
                         if   [[ $action = "mount_dirs"   ]]; then
-                                a_mount_dir "$inmemory_mirror_dir" "$mount_type" "$inmemory_dir"
+                                a_mount_dir "$memory_mounts" "$mount_type" "$inmemory_dir"
 
                         elif [[ $action = "unmount_dirs" ]]; then
                                 a_unmount_dir "$inmemory_dir"
@@ -322,7 +387,7 @@ case "$action" in
                 done
                 ;;
 
-        run)
+        wind)
                 speedhack "bind_root"  >> "$log_file" 2>&1 &&
                 speedhack "mount_dirs" >> "$log_file" 2>&1 &&
                 speedhack "sync"       >> "$log_file" 2>&1 &&
@@ -351,17 +416,22 @@ case "$action" in
         *)
                 info "action must be one of:"
                 info ""
-                info "    bind_root          -- bind the root to the specified real_root_dir"
+                info "    log_file           -- print configured log_file"
+                info "    real_root_mount    -- print configured real_root_mount"
+                info "    memory_mounts      -- print configured memory_mounts"
+                info "    mount_type         -- print configured mount_type"
+                info ""
+                info "    bind_root          -- bind the root to the specified real_root_mount"
                 info "    mount_dirs         -- mount all in-memory dirs"
                 info "    sync               -- copy system directories to their in-memory counterparts"
                 info "    bind_dirs          -- bind system directories to their in-memory counterparts"
                 info ""
                 info "    unbind_dirs        -- remove system bindings"
-                info "    sync_back          -- copy back any missed changes"
+                info "    sync_back          -- copy back any changes to read-write mounts"
                 info "    unmount_dirs       -- unmount in-memory directories"
                 info "    unbind_root        -- unbind system root"
                 info ""
-                info "    run                -- perform bind_root, mount_dirs, sync, and bind_dirs"
+                info "    wind               -- perform bind_root, mount_dirs, sync, and bind_dirs"
                 info "    unwind             -- perform sync_back, unbind_dirs, unmount_dirs, unbind_root"
                 info ""
                 error "unrecognised action '%s'" "$action"

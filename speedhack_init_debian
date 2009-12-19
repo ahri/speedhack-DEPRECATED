@@ -17,11 +17,6 @@
 SPEEDHACK="/usr/local/bin/speedhack"
 test -x "$SPEEDHACK" || exit 0
 
-PIDFILE=`speedhack pid_file`
-# In some systems the pidfile might be (incorrectly) set to /etc
-# if this pidfile is present, use it instead.
-[ -r /etc/default/speedhack ] && . /etc/default/speedhack
-
 . /lib/lsb/init-functions
 
 # Read the system's locale and set speedhack's locale. This locale
@@ -47,25 +42,26 @@ if [ "$READ_ENV" = "yes" ] ; then
     parse_environment
 fi
 
+PATH="/usr/local/bin:$PATH"
 
 case "$1" in
-start)	log_daemon_msg "Starting speedhack" "speedhack"
-        "$SPEEDHACK" daemon
+start)	log_daemon_msg "Starting" "speedhack"
+        "$SPEEDHACK" wind
         log_end_msg $?
 	;;
-stop)	log_daemon_msg "Stopping speedhack" "speedhack"
-        "$SPEEDHACK" kill_daemon
+stop)	log_daemon_msg "Stopping" "speedhack"
+        "$SPEEDHACK" unwind
         log_end_msg $?
         ;;
-restart) log_daemon_msg "Restarting (syncing back) speedhack" "speedhack" 
+restart) log_daemon_msg "Restarting (syncing back)" "speedhack" 
         "$SPEEDHACK" sync_back
         log_end_msg $?
         ;;
-reload|force-reload) log_daemon_msg "Reloading speedhack (not supported)" "speedhack"
+reload|force-reload) log_daemon_msg "Reloading (not supported)" "speedhack"
 	# speedhack does not support reloading
         log_end_msg 1
         ;;
-status) log_daemon_msg "Status check of speedhack (not supported)" "speedhack"
+status) log_daemon_msg "Status check (not supported)" "speedhack"
 	# speedhack does not support status
         log_end_msg 1
 	;;

@@ -16,6 +16,34 @@ Reason
 ------
 To make the desktop experience of an end-user a "lighter" affair.
 
+Usage
+-----
+Create /etc/speedhack.conf
+Populate with key=value pairs for keys:
+        logfile
+        mount_type
+        real_root_mount
+        memory_mounts
+
+These all have default values set, so you can forget about them if you like.
+
+Then add multiple dir= statements to the config, to indicate which directories
+to mount into memory. These can be prefixed with an "@" sign to make them
+read-only, i.e. running `speedhack sync_back` will not sync back changes to
+these mounts.
+
+e.g. my config file contains:
+        dir=/usr/bin
+        dir=/usr/lib
+        dir=@/home/adam/.mozilla
+
+Run speedhack without parameters for further help
+
+Note that I use speedhack-wrap when updating the OS;
+        sudo speedhack-wrap apt-get upgrade
+-- this copies across changes after they occur to ensure your system is not
+broken next time you boot!
+
 Result
 ------
 Tested with Crunchbang Linux (Lite) plain install, and Firefox 3.5 with
